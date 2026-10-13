@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi Kasir (POS) Desktop</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans antialiased min-h-screen flex flex-col">
+
+    <!-- 1. Navbar Utama -->
+    <header class="bg-indigo-600 text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <span class="text-2xl">⚡</span>
+                <h1 class="text-xl font-bold tracking-wide">POS Kasir Pro</h1>
+            </div>
+            <nav class="flex space-x-2">
+                <button onclick="switchTab('penjualan')" id="btn-tab-penjualan" class="px-4 py-2 rounded-lg font-medium bg-indigo-700 text-white transition shadow">
+                    🛒 Penjualan
+                </button>
+                <button onclick="switchTab('stok')" id="btn-tab-stok" class="px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 text-indigo-100 transition">
+                    📦 Stok Barang
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Container untuk Dynamic Tab Content -->
+    <main id="main-content" class="flex-1 max-w-7xl w-full mx-auto p-4">
+        <!-- Konten tab dimuat secara dinamis -->
+    </main>
+
+    <!-- ==================== MODAL SUKSES ==================== -->
+    <div id="modal-sukses" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-2xl shadow-xl max-w-sm w-full text-center space-y-4">
+            <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-3xl">
+                ✓
+            </div>
+            <h3 class="text-xl font-bold text-slate-800">Transaksi Berhasil!</h3>
+            <p id="modal-pesan" class="text-slate-600 text-sm">Pembayaran telah diproses dan stok berhasil diperbarui.</p>
+            <button onclick="tutupModal()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-lg transition">
+                Tutup
+            </button>
+        </div>
+    </div>
+
+    <!-- Main JavaScript App Controller -->
+    <script src="app.js"></script>
+</body>
+</html>

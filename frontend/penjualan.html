@@ -1,0 +1,231 @@
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Kolom Kiri: Grid Produk & Pencarian -->
+    <div class="lg:col-span-2 flex flex-col space-y-4">
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+            <input type="text" id="search-produk" placeholder="Cari nama barang..." class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        </div>
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex-1">
+            <h2 class="text-lg font-semibold mb-3 text-slate-700">Daftar Produk</h2>
+            <div id="grid-produk" class="grid grid-cols-2 sm:grid-cols-3 gap-4 overflow-y-auto max-h-[550px] p-1">
+                <div class="p-4 border rounded-lg bg-slate-50 text-center text-slate-400 col-span-full py-12">
+                    Memuat produk...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Kolom Kanan: Keranjang Belanja & Pembayaran -->
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between">
+        <div>
+            <h2 class="text-lg font-semibold mb-3 text-slate-700 border-b pb-2">Keranjang Belanja</h2>
+            <div id="list-keranjang" class="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+                <p class="text-slate-400 text-sm text-center py-8">Keranjang masih kosong</p>
+            </div>
+        </div>
+
+        <div class="mt-6 border-t pt-4 space-y-3">
+            <div class="flex justify-between text-lg font-bold text-slate-800">
+                <span>Total:</span>
+                <span id="total-harga">Rp 0</span>
+            </div>
+            <div class="space-y-1">
+                <label class="text-sm font-medium text-slate-600">Uang Dibayar</label>
+                <input type="number" id="input-dibayar" placeholder="0" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <div class="flex justify-between text-md font-semibold text-slate-700">
+                <span>Kembalian:</span>
+                <span id="uang-kembalian" class="text-emerald-600">Rp 0</span>
+            </div>
+            <button onclick="prosesCheckout()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 rounded-lg shadow transition">
+                Selesaikan Transaksi
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function initPenjualanTab() {
+        await fetchBarangAPI();
+        renderGridProduk(daftarBarang);
+        renderKeranjang();
+
+        // Event Listener Search
+        document.getElementById('search-produk').addEventListener('input', (e) => {
+            const keyword = e.target.value.toLowerCase();
+            const filtered = daftarBarang.filter(item => item.nama_barang.toLowerCase().includes(keyword));
+            renderGridProduk(filtered);
+        });
+
+        // Event Listener Dibayar
+        document.getElementById('input-dibayar').addEventListener('input', hitungKembalian);
+    }
+
+    function renderGridProduk(products) {
+        const grid = document.getElementById('grid-produk');
+        if (!grid) return;
+        if (products.length === 0) {
+            grid.innerHTML = `<div class="p-4 border rounded-lg bg-slate-50 text-center text-slate-400 col-span-full py-12">Tidak ada produk ditemukan</div>`;
+            return;
+        }
+
+        grid.innerHTML = products.map(p => `
+            <div onclick="tambahKeKeranjang(${p.id})" class="p-4 border border-slate-200 rounded-xl bg-white hover:border-indigo-500 hover:shadow-md cursor-pointer transition flex flex-col justify-between">
+                <div>
+                    <h3 class="font-semibold text-slate-800 line-clamp-1">${p.nama_barang}</h3>
+                    <p class="text-indigo-600 font-bold mt-1">Rp ${p.harga.toLocaleString('id-ID')}</p>
+                </div>
+                <div class="mt-4 flex justify-between items-center text-xs text-slate-500">
+                    <span>Stok: ${p.stok}</span>
+                    <span class="bg-indigo-50 text-indigo-600 px-2 py-1 rounded font-medium">+ Tambah</span>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function tambahKeKeranjang(id) {
+        const produk = daftarBarang.find(p => p.id === id);
+        if (!produk) return;
+
+        const itemDiKeranjang = keranjang.find(item => item.id === id);
+        const qtySaatIni = itemDiKeranjang ? itemDiKeranjang.qty : 0;
+
+        if (qtySaatIni + 1 > produk.stok) {
+            alert('Stok tidak mencukupi!');
+            return;
+        }
+
+        if (itemDiKeranjang) {
+            itemDiKeranjang.qty += 1;
+        } else {
+            keranjang.push({
+                id: produk.id,
+                nama_barang: produk.nama_barang,
+                harga: produk.harga,
+                qty: 1
+            });
+        }
+
+        renderKeranjang();
+    }
+
+    function ubahQty(id, delta) {
+        const item = keranjang.find(i => i.id === id);
+        if (!item) return;
+
+        const produkOriginal = daftarBarang.find(p => p.id === id);
+        const qtyBaru = item.qty + delta;
+
+        if (qtyBaru > produkOriginal.stok) {
+            alert('Stok tidak mencukupi!');
+            return;
+        }
+
+        if (qtyBaru <= 0) {
+            keranjang = keranjang.filter(i => i.id !== id);
+        } else {
+            item.qty = qtyBaru;
+        }
+
+        renderKeranjang();
+    }
+
+    function renderKeranjang() {
+        const container = document.getElementById('list-keranjang');
+        if (!container) return;
+
+        if (keranjang.length === 0) {
+            container.innerHTML = `<p class="text-slate-400 text-sm text-center py-8">Keranjang masih kosong</p>`;
+            const totalEl = document.getElementById('total-harga');
+            const kembalianEl = document.getElementById('uang-kembalian');
+            if (totalEl) totalEl.innerText = 'Rp 0';
+            if (kembalianEl) kembalianEl.innerText = 'Rp 0';
+            return;
+        }
+
+        container.innerHTML = keranjang.map(item => `
+            <div class="flex items-center justify-between border-b pb-2">
+                <div>
+                    <h4 class="font-medium text-slate-800 text-sm">${item.nama_barang}</h4>
+                    <p class="text-xs text-slate-500">Rp ${item.harga.toLocaleString('id-ID')} x ${item.qty}</p>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button onclick="ubahQty(${item.id}, -1)" class="w-7 h-7 bg-slate-100 hover:bg-slate-200 rounded font-bold text-slate-600">-</button>
+                    <span class="text-sm font-semibold w-5 text-center">${item.qty}</span>
+                    <button onclick="ubahQty(${item.id}, 1)" class="w-7 h-7 bg-slate-100 hover:bg-slate-200 rounded font-bold text-slate-600">+</button>
+                </div>
+            </div>
+        `).join('');
+
+        hitungTotal();
+    }
+
+    function hitungTotal() {
+        const total = keranjang.reduce((sum, item) => sum + (item.harga * item.qty), 0);
+        const totalEl = document.getElementById('total-harga');
+        if (totalEl) totalEl.innerText = `Rp ${total.toLocaleString('id-ID')}`;
+        hitungKembalian();
+        return total;
+    }
+
+    function hitungKembalian() {
+        const total = keranjang.reduce((sum, item) => sum + (item.harga * item.qty), 0);
+        const dibayarInput = document.getElementById('input-dibayar');
+        const kembalianEl = document.getElementById('uang-kembalian');
+        if (!dibayarInput || !kembalianEl) return;
+
+        const dibayar = parseInt(dibayarInput.value) || 0;
+        const selisih = dibayar - total;
+
+        if (selisih < 0) {
+            kembalianEl.innerText = 'Uang Kurang!';
+            kembalianEl.className = 'text-rose-600 font-bold';
+        } else {
+            kembalianEl.innerText = `Rp ${selisih.toLocaleString('id-ID')}`;
+            kembalianEl.className = 'text-emerald-600 font-bold';
+        }
+    }
+
+    async function prosesCheckout() {
+        if (keranjang.length === 0) {
+            alert('Keranjang belanja masih kosong!');
+            return;
+        }
+
+        const total = keranjang.reduce((sum, item) => sum + (item.harga * item.qty), 0);
+        const dibayar = parseInt(document.getElementById('input-dibayar').value) || 0;
+
+        if (dibayar < total) {
+            alert('Uang pembayaran kurang!');
+            return;
+        }
+
+        const payload = {
+            keranjang: keranjang.map(item => ({ id: item.id, qty: item.qty }))
+        };
+
+        try {
+            const response = await fetch('/api/penjualan', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const result = await response.json();
+
+            if (response.ok) {
+                keranjang = [];
+                document.getElementById('input-dibayar').value = '';
+                renderKeranjang();
+                await fetchBarangAPI();
+                renderGridProduk(daftarBarang);
+
+                document.getElementById('modal-pesan').innerText = `Transaksi berhasil! Kembalian: Rp ${(dibayar - total).toLocaleString('id-ID')}`;
+                document.getElementById('modal-sukses').classList.remove('hidden');
+            } else {
+                alert(result.message || 'Transaksi gagal diproses');
+            }
+        } catch (error) {
+            console.error('Error checkout:', error);
+            alert('Terjadi kesalahan koneksi ke server');
+        }
+    }
+</script>

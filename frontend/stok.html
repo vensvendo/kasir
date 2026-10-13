@@ -1,0 +1,142 @@
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Kolom Kiri: Form Input/Edit Barang -->
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 h-fit">
+        <h2 id="form-title" class="text-lg font-semibold mb-4 text-slate-700 border-b pb-2">Tambah Barang Baru</h2>
+        <form id="form-barang" onsubmit="simpanBarang(event)" class="space-y-4">
+            <input type="hidden" id="barang-id">
+            <div>
+                <label class="block text-sm font-medium text-slate-600 mb-1">Nama Barang</label>
+                <input type="text" id="nama-barang" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-600 mb-1">Harga (Rp)</label>
+                <input type="number" id="harga-barang" required min="0" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-600 mb-1">Stok</label>
+                <input type="number" id="stok-barang" required min="0" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <div class="flex space-x-2 pt-2">
+                <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-lg transition shadow">
+                    Simpan
+                </button>
+                <button type="button" onclick="resetFormBarang()" class="px-4 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-2.5 rounded-lg transition">
+                    Batal
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Kolom Kanan: Tabel Data Stok Barang -->
+    <div class="lg:col-span-2 bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+        <h2 class="text-lg font-semibold mb-4 text-slate-700 border-b pb-2">Daftar Stok Barang</h2>
+        <div class="overflow-x-auto max-h-[500px]">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-slate-50 text-slate-600 text-sm border-b">
+                        <th class="p-3">Nama Barang</th>
+                        <th class="p-3">Harga</th>
+                        <th class="p-3">Stok</th>
+                        <th class="p-3 text-center">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="tabel-barang" class="divide-y divide-slate-100 text-sm">
+                    <tr>
+                        <td colspan="4" class="p-4 text-center text-slate-400">Memuat data barang...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function initStokTab() {
+        await fetchBarangAPI();
+        renderTabelStok(daftarBarang);
+    }
+
+    function renderTabelStok(products) {
+        const tbody = document.getElementById('tabel-barang');
+        if (!tbody) return;
+        if (products.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-400">Belum ada data barang</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = products.map(p => `
+            <tr class="hover:bg-slate-50">
+                <td class="p-3 font-medium text-slate-800">${p.nama_barang}</td>
+                <td class="p-3 text-slate-600">Rp ${p.harga.toLocaleString('id-ID')}</td>
+                <td class="p-3 text-slate-600">${p.stok}</td>
+                <td class="p-3 text-center space-x-2">
+                    <button onclick="editBarang(${p.id}, '${p.nama_barang}', ${p.harga}, ${p.stok})" class="text-amber-600 hover:text-amber-800 font-medium">Edit</button>
+                    <button onclick="hapusBarang(${p.id})" class="text-rose-600 hover:text-rose-800 font-medium">Hapus</button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    async function simpanBarang(event) {
+        event.preventDefault();
+        const id = document.getElementById('barang-id').value;
+        const nama_barang = document.getElementById('nama-barang').value;
+        const harga = parseInt(document.getElementById('harga-barang').value);
+        const stok = parseInt(document.getElementById('stok-barang').value);
+
+        const payload = { nama_barang, harga, stok };
+        const url = id ? `/api/barang/${id}` : '/api/barang';
+        const method = id ? 'PUT' : 'POST';
+
+        try {
+            const response = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const result = await response.json();
+
+            if (response.ok) {
+                resetFormBarang();
+                await fetchBarangAPI();
+                renderTabelStok(daftarBarang);
+            } else {
+                alert(result.message || 'Gagal menyimpan barang');
+            }
+        } catch (error) {
+            console.error('Error simpan barang:', error);
+            alert('Terjadi kesalahan koneksi');
+        }
+    }
+
+    async function hapusBarang(id) {
+        if (!confirm('Apakah Anda yakin ingin menghapus barang ini?')) return;
+
+        try {
+            const response = await fetch(`/api/barang/${id}`, { method: 'DELETE' });
+            const result = await response.json();
+            if (response.ok) {
+                await fetchBarangAPI();
+                renderTabelStok(daftarBarang);
+            } else {
+                alert(result.message || 'Gagal menghapus barang');
+            }
+        } catch (error) {
+            console.error('Error hapus barang:', error);
+        }
+    }
+
+    function editBarang(id, nama, harga, stok) {
+        document.getElementById('barang-id').value = id;
+        document.getElementById('nama-barang').value = nama;
+        document.getElementById('harga-barang').value = harga;
+        document.getElementById('stok-barang').value = stok;
+        document.getElementById('form-title').innerText = 'Edit Data Barang';
+    }
+
+    function resetFormBarang() {
+        document.getElementById('form-barang').reset();
+        document.getElementById('barang-id').value = '';
+        document.getElementById('form-title').innerText = 'Tambah Barang Baru';
+    }
+</script>
